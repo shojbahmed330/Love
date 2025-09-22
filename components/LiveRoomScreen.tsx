@@ -36,11 +36,13 @@ const isJumboEmoji = (text: string | undefined): boolean => {
     const trimmedText = text.trim();
     const noEmojiText = trimmedText.replace(EMOJI_REGEX, '');
     if (noEmojiText.trim().length > 0) return false; // Contains non-emoji text
-    // This regex matches a sequence of one or two emoji characters.
-    // The complexity handles grapheme clusters (emojis made of multiple unicode points).
-    const graphemeRegex = /^\X{1,2}$/u;
-    return graphemeRegex.test(trimmedText);
+
+    // The string iterator (used by Array.from) correctly handles grapheme clusters (emojis).
+    // This replaces the invalid /^\X{1,2}$/u regex that was causing a build failure.
+    const graphemes = Array.from(trimmedText);
+    return graphemes.length > 0 && graphemes.length <= 2;
 };
+
 
 interface LiveRoomScreenProps {
   currentUser: User;
