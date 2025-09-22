@@ -91,8 +91,31 @@ const ChatMessage: React.FC<{
     activeSpeakerId: string | null; 
     isMe: boolean;
 }> = ({ message, activeSpeakerId, isMe }) => {
+    const [animate, setAnimate] = useState(true);
+
+    useEffect(() => {
+        // Reset animation state if the message content changes (for recycled components)
+        setAnimate(true);
+    }, [message.text]);
+
+    const triggerAnimation = () => {
+        setAnimate(false);
+        setTimeout(() => setAnimate(true), 10); // Re-trigger animation
+    };
+
     const isSpeaking = message.sender.id === activeSpeakerId;
     const isJumbo = isJumboEmoji(message.text);
+    
+    const BUBBLE_COLORS = [
+      'bg-sky-600', 'bg-emerald-600', 'bg-indigo-600',
+      'bg-teal-600', 'bg-rose-600', 'bg-amber-600'
+    ];
+    
+    const getUserColor = (userId: string) => {
+      const hash = userId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+      return BUBBLE_COLORS[hash % BUBBLE_COLORS.length];
+    };
+
 
     const bubbleClasses = useMemo(() => {
         const base = 'px-4 py-2 rounded-2xl max-w-xs relative transition-all duration-300';
@@ -102,11 +125,11 @@ const ChatMessage: React.FC<{
         if (isMe) {
             return `${base} bg-gradient-to-br from-blue-600 to-violet-600 text-white ml-auto rounded-br-none`;
         }
-        if (message.isHost) {
-            return `${base} bg-slate-700 text-slate-100 border border-amber-400/50 rounded-bl-none`;
-        }
-        return `${base} bg-slate-700 text-slate-100 rounded-bl-none`;
-    }, [isMe, message.isHost, isJumbo]);
+        // For others, apply colorful class by default, and slate-700 on medium screens and up
+        const userColor = getUserColor(message.sender.id);
+        const hostClass = message.isHost ? 'border border-amber-400/50' : '';
+        return `${base} ${userColor} md:bg-slate-700 text-white rounded-bl-none ${hostClass}`;
+    }, [isMe, message.isHost, isJumbo, message.sender.id]);
 
     const glowClass = isSpeaking ? 'shadow-[0_0_15px_rgba(57,255,20,0.7)]' : '';
 
@@ -125,7 +148,11 @@ const ChatMessage: React.FC<{
                     )}
                     <div className="relative">
                         <div className={`${bubbleClasses} ${glowClass}`}>
-                           <p className={`text-base break-words overflow-wrap-break-word ${isJumbo ? 'jumbo-emoji animate-jumbo' : ''}`}>{message.text}</p>
+                           <p 
+                             onClick={isJumbo ? triggerAnimation : undefined}
+                             className={`text-base break-words overflow-wrap-break-word ${isJumbo ? 'jumbo-emoji' : ''} ${animate && isJumbo ? 'animate-jumbo-wiggle' : ''}`}>
+                               {message.text}
+                           </p>
                         </div>
                     </div>
                 </div>
@@ -346,7 +373,8 @@ const LiveRoomScreen: React.FC<LiveRoomScreenProps> = ({ currentUser, roomId, on
         const trimmedMessage = newMessage.trim();
         if (trimmedMessage === '' || !room) return;
         
-        if (trimmedMessage === '❤️') {
+        const isSingleHeart = Array.from(trimmedMessage).length === 1 && trimmedMessage.includes('❤️');
+        if (isSingleHeart) {
             setShowHeartAnimation(true);
             setTimeout(() => setShowHeartAnimation(false), 3000);
         }
